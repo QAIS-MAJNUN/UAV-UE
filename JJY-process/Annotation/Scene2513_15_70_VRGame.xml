@@ -1,0 +1,29 @@
+<annotation>
+	<folder>C://Users//HP//Desktop//AirsimÊ¾ÀıÕÕÆ¬//SceneImage//SceneÊ¾ÀıÕÕÆ¬//SegmentationImage</folder>
+	<filename>Scene2513_15_70_VRGame.png</filename>
+	<path>C:\Users\HP\Desktop\AirsimÊ¾ÀıÕÕÆ¬C://Users//HP//Desktop//AirsimÊ¾ÀıÕÕÆ¬//SceneImage//SceneÊ¾ÀıÕÕÆ¬//SegmentationImage\Scene2513_15_70_VRGame.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>1920</width>
+		<height>1080</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<scene>VRGame</scene>
+	<cameraHeight>15</cameraHeight>
+	<cameraRotation>70</cameraRotation>
+	<object>
+		<name>SUV</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>532</xmin>
+			<ymin>818</ymin>
+			<xmax>765</xmax>
+			<ymax>1080</ymax>
+		</bndbox>
+	</object>
+</annotation>

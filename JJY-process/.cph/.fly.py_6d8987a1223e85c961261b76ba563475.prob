@@ -1,0 +1,1 @@
+{"name":"Local: fly","url":"h:\\UAV-temp-staging\\process\\fly.py","tests":[{"id":1730110562138,"input":"","output":""}],"interactive":false,"memoryLimit":1024,"timeLimit":3000,"srcPath":"h:\\UAV-temp-staging\\process\\fly.py","group":"local","local":true}

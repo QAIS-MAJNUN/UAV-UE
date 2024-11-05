@@ -1,0 +1,17 @@
+<annotation>
+	<folder>SceneImage</folder>
+	<filename>Scene13_5_5_Overpass.png</filename>
+	<path>E:\UAV-temp-staging\Capture-Process\SceneImage\Scene13_5_5_Overpass.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>1920</width>
+		<height>1080</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<scene>Overpass</scene>
+	<cameraHeight>5</cameraHeight>
+	<cameraRotation>5</cameraRotation>
+</annotation>

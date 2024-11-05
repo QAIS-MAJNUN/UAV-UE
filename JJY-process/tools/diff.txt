@@ -1,0 +1,6 @@
+Files only in folder1:
+Scene2529_50_90_VRGame.png
+Scene2530_50_90_VRGame.png
+
+Files only in folder2:
+Scene2529_20_90_VRGame.png
