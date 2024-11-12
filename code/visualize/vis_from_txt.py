@@ -4,7 +4,7 @@ import numpy as np
 from mayavi import mlab
 
 
-palette = np.load(r"E:\__WORKSPACE__\Python\UAV\demo\visualize\palette.npy").tolist()
+palette = np.load(r"E:\__WORKSPACE__\Python\UAV\code\visualize\palette.npy").tolist()
 
 
 def read_pcd(file_path1):

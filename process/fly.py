@@ -7,37 +7,39 @@ import os
 import math
 
 
-# 基本参数
-# 基础的控制速度(m/s)
-vehicle_velocity = 2.0
-# 设置临时加速比例
-speedup_ratio = 10.0
-# 用来设置临时加速
-speedup_flag = False
-# 基础的偏航速率
-vehicle_yaw_rate = 5.0
-# 无人机摄像头角度
-camera_rotations = 0.
-# 无人机摄像头最大旋转角度
-camera_rotation_rate = math.pi / 4
-# 实景图和分割图的存储位置
-absolutepath = "E:/__WORKSPACE__/Python/UAV/process/"
-scenepath = absolutepath + "SceneImage/"
-segmentationpath = absolutepath + "SegmentationImage/"
-segmentationnormpath = absolutepath + "SegmentationNormalImage/"
-surfacepath = absolutepath + "SurfaceNormalsImage/"
-depthpath = absolutepath + "DepthVisImage/"
-infredpath = absolutepath + "InfraredImage/"
-depthperspectivepath = absolutepath + "DepthPerspectiveImage/"
-depthplanarpath = absolutepath + "DepthPlanarImage/"
-pointcloudpath = absolutepath + "PointCloud/"
-# 已有数据集的数量
-files = os.listdir(pointcloudpath)
-picture_nums = len(files)
-# 拍摄的数据集数量
-picture_num = 0
-# 一般短时间内只会拍摄一次照片，按一次按键需要0.06s，会重复多拍
-key_counter = 0
+################################### 存储位置 ###################################
+
+absolutepath            = "E:/__WORKSPACE__/Python/UAV/process/dataset/"
+scenepath               = absolutepath + "SceneImage/"
+segmentationpath        = absolutepath + "SegmentationImage/"
+segmentationnormpath    = absolutepath + "SegmentationNormalImage/"
+surfacepath             = absolutepath + "SurfaceNormalsImage/"
+depthpath               = absolutepath + "DepthVisImage/"
+infredpath              = absolutepath + "InfraredImage/"
+depthperspectivepath    = absolutepath + "DepthPerspectiveImage/"
+depthplanarpath         = absolutepath + "DepthPlanarImage/"
+pointcloudpath          = absolutepath + "PointCloud/"
+detectionpath           = absolutepath + "Detection/"
+
+
+################################ 无人机基本参数 ################################
+
+vehicle_velocity = 2.0              # 基础的控制速度(m/s)
+speedup_ratio = 10.0                # 设置临时加速比例
+speedup_flag = False                # 用来设置临时加速
+vehicle_yaw_rate = 5.0              # 基础的偏航速率
+camera_rotations = 0.               # 无人机摄像头角度
+camera_rotation_rate = math.pi / 4  # 无人机摄像头最大旋转角度
+
+
+################################### 基本信息 ###################################
+
+scene_name = "Real City SF"                     # 场景名称
+picture_nums = len(os.listdir(pointcloudpath))  # 已有数据集的数量
+picture_num = 0                                 # 拍摄的数据集数量
+key_counter = 0                                 # 用于控制拍摄频率，短时间内只会拍摄一次照片
+
+
 
 
 # pygame初始化设置
@@ -53,7 +55,6 @@ def pygame_init():
 
 # 解析点云数据
 def parse_lidarData(data):
-
     # reshape array of floats to array of [X,Y,Z]
     points = np.array(data.point_cloud, dtype=np.dtype('f4')).reshape(-1, 3)
     seg = data.segmentation
@@ -68,16 +69,76 @@ def parse_lidarData(data):
                 f.write("%f %f %f %d\n" % (points[i, 0], points[i, 1], points[i, 2], seg[i]))
 
 
+def save_detections(detections, SceneImage):
+    with open(detectionpath + "Detection" + str(picture_nums + picture_num) + ".xml", "w") as f:
+        f.write("<annotation>\n")
+        f.write("\t<file>" + SceneImage + "</file>\n")
+        f.write("\t<scene>" + scene_name + "</scene>\n")
+        f.write("\t<prev>" + "pass" + "</prev>\n")
+        f.write("\t<next>" + "pass" + "</next>\n")
+        f.write("\t<timestamp>" + "pass" + "</timestamp>\n")
+        for obj in detections:
+            f.write("\t<object>\n")
+            f.write("\t\t<name>" + obj.name + "</name>\n")
+
+            f.write("\t\t<box2D>\n")
+            f.write("\t\t\t<xmin>" + str(obj.box2D.min.x_val) + "</xmin>\n")
+            f.write("\t\t\t<ymin>" + str(obj.box2D.min.y_val) + "</ymin>\n")
+            f.write("\t\t\t<xmax>" + str(obj.box2D.max.x_val) + "</xmax>\n")
+            f.write("\t\t\t<ymax>" + str(obj.box2D.max.y_val) + "</ymax>\n")
+            f.write("\t\t</box2D>\n")
+
+            f.write("\t\t<box3D>\n")
+            f.write("\t\t\t<xmin>" + str(obj.box3D.min.x_val) + "</xmin>\n")
+            f.write("\t\t\t<ymin>" + str(obj.box3D.min.y_val) + "</ymin>\n")
+            f.write("\t\t\t<zmin>" + str(obj.box3D.min.z_val) + "</zmin>\n")
+            f.write("\t\t\t<xmax>" + str(obj.box3D.max.x_val) + "</xmax>\n")
+            f.write("\t\t\t<ymax>" + str(obj.box3D.max.y_val) + "</ymax>\n")
+            f.write("\t\t\t<zmax>" + str(obj.box3D.max.z_val) + "</zmax>\n")
+            f.write("\t\t</box3D>\n")
+
+            f.write("\t\t<geo_point>\n")
+            f.write("\t\t\t<altitude>" + str(obj.geo_point.altitude) + "</altitude>\n")
+            f.write("\t\t\t<latitude>" + str(obj.geo_point.latitude) + "</latitude>\n")
+            f.write("\t\t\t<longitude>" + str(obj.geo_point.longitude) + "</longitude>\n")
+            f.write("\t\t</geo_point>\n")
+
+            f.write("\t\t<relative_pose>\n")
+            f.write("\t\t\t<orientation>\n")
+            f.write("\t\t\t\t<w>" + str(obj.relative_pose.orientation.w_val) + "</w>\n")
+            f.write("\t\t\t\t<x>" + str(obj.relative_pose.orientation.x_val) + "</x>\n")
+            f.write("\t\t\t\t<y>" + str(obj.relative_pose.orientation.y_val) + "</y>\n")
+            f.write("\t\t\t\t<z>" + str(obj.relative_pose.orientation.z_val) + "</z>\n")
+            f.write("\t\t\t</orientation>\n")
+            f.write("\t\t\t<position>\n")
+            f.write("\t\t\t\t<x>" + str(obj.relative_pose.position.x_val) + "</x>\n")
+            f.write("\t\t\t\t<y>" + str(obj.relative_pose.position.y_val) + "</y>\n")
+            f.write("\t\t\t\t<z>" + str(obj.relative_pose.position.z_val) + "</z>\n")
+            f.write("\t\t\t</position>\n")
+            f.write("\t\t</relative_pose>\n")
+
+            f.write("\t</object>\n")
+
+        f.write("</annotation>\n")
+
+
 # 拍摄数据集
 def image_capture(AirSim_client, picture_num):
 
     # Scene
-    response = AirSim_client.simGetImage("front_center", airsim.ImageType.Segmentation) 
+    response = AirSim_client.simGetImage("bottom_center", airsim.ImageType.Segmentation) 
     with open(scenepath + "Scene" + str(picture_nums + picture_num) + ".png", 'wb') as f:
         f.write(response) 
 
     # PointCloud
     parse_lidarData(AirSim_client.getLidarData())
+
+    # Bbox
+    detections = AirSim_client.simGetDetections("bottom_center", airsim.ImageType.Scene, vehicle_name = 'Drone')
+    save_detections(detections, scenepath + "Scene" + str(picture_nums + picture_num) + ".png")
+
+    print("Captured")
+    
 
 
 if __name__ == "__main__":
@@ -92,8 +153,9 @@ if __name__ == "__main__":
     AirSim_client.takeoffAsync(vehicle_name=vehicle_name).join()
 
     #* 移动到60m高度
-    AirSim_client.moveToZAsync(-60, 10, vehicle_name=vehicle_name).join()
+    # AirSim_client.moveToZAsync(-60, 10, vehicle_name=vehicle_name).join()
 
+    # 设置分割对象ID及对应颜色
     AirSim_client.simSetSegmentationObjectID(".*", 0, True)
     AirSim_client.simSetSegmentationObjectID("SM_bus_articulated[\w]*", 50, True)
     AirSim_client.simSetSegmentationObjectID(".*tree.*", 245, True)
@@ -102,12 +164,13 @@ if __name__ == "__main__":
     AirSim_client.simSetSegmentationObjectID(".*road.*", 109, True)
     AirSim_client.simSetSegmentationObjectID(".*traffic.*light.*", 178, True)
 
+    # 设置物体检测参数
+    AirSim_client.simSetDetectionFilterRadius("bottom_center", airsim.ImageType.Scene, 100 * 100, vehicle_name = 'Drone')
+    AirSim_client.simAddDetectionFilterMeshName("bottom_center", airsim.ImageType.Scene, "SM_bus_articulated*", vehicle_name = 'Drone')
+
     pygame_init()
 
-    # 提供了三种关闭方式
-    # 若用户点击窗口关闭按钮，程序会直接退出，无人机会悬停在空中
-    # 若用户通过Esc关闭，程序会直接退出，无人机会悬停在空中
-    # 若用户通过.关闭，程序会等待无人机降落后再退出
+    # 提供了三种关闭方式：若用户点击窗口、ESC关闭按钮，程序会直接退出，无人机会悬停在空中；若用户通过.关闭，程序会等待无人机降落后再退出
     while True:
         yaw_rate = 0.0
         velocity_x = 0.0
