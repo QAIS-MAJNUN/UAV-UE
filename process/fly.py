@@ -20,19 +20,26 @@ depthperspectivepath    = absolutepath + "DepthPerspectiveImage/"
 depthplanarpath         = absolutepath + "DepthPlanarImage/"
 pointcloudpath          = absolutepath + "PointCloud/"
 detectionpath           = absolutepath + "Detection/"
+posepath                = absolutepath + "Pose/"
+voxelpath               = absolutepath + "VoxelGrid/"
 
 
 ################################ 无人机基本参数 ################################
 
+vehicle_name = "Drone"              # 无人机名称（需要与setting.json对应）
 vehicle_velocity = 2.0              # 基础的控制速度(m/s)
 speedup_ratio = 10.0                # 设置临时加速比例
 speedup_flag = False                # 用来设置临时加速
 vehicle_yaw_rate = 5.0              # 基础的偏航速率
 camera_rotations = 0.               # 无人机摄像头角度
 camera_rotation_rate = math.pi / 4  # 无人机摄像头最大旋转角度
+# 建立连接
+AirSim_client = airsim.MultirotorClient()
+AirSim_client.confirmConnection()
+AirSim_client.enableApiControl(True, vehicle_name)
 
 
-################################### 基本信息 ###################################
+################################# 拍摄基本信息 #################################
 
 scene_name = "Real City SF"                     # 场景名称
 picture_nums = len(os.listdir(pointcloudpath))  # 已有数据集的数量
@@ -40,10 +47,32 @@ picture_num = 0                                 # 拍摄的数据集数量
 key_counter = 0                                 # 用于控制拍摄频率，短时间内只会拍摄一次照片
 
 
+################################### Mesh信息 ###################################
+
+# 设置分割对象ID及对应颜色
+AirSim_client.simSetSegmentationObjectID(".*", 0, True)
+AirSim_client.simSetSegmentationObjectID("SM_bus_articulated[\w]*", 50, True)
+AirSim_client.simSetSegmentationObjectID(".*tree.*", 245, True)
+AirSim_client.simSetSegmentationObjectID(".*[Bb]ld.*", 149, True)
+AirSim_client.simSetSegmentationObjectID(".*[Bb]uild.*", 149, True)
+AirSim_client.simSetSegmentationObjectID(".*road.*", 109, True)
+AirSim_client.simSetSegmentationObjectID(".*traffic.*light.*", 178, True)
+
+# 设置物体检测参数
+AirSim_client.simSetDetectionFilterRadius("bottom_center", airsim.ImageType.Scene, 100 * 100, vehicle_name = 'Drone')
+AirSim_client.simAddDetectionFilterMeshName("bottom_center", airsim.ImageType.Scene, "SM_bus_articulated*", vehicle_name = 'Drone')
+
+# 获取移动物体列表
+# movable_object = AirSim_client.simListSceneObjects(name_regex = "SM_bus_articulated[\w]*")
+movable_object = AirSim_client.simListSceneObjects(name_regex = "SM_bus_articulated_14")
 
 
-# pygame初始化设置
-def pygame_init():
+
+def swap(a, b):  # 交换两个变量的值
+    return b, a
+
+
+def pygame_init():  # pygame初始化设置
     pygame.init()
     # 创建320*240像素的窗口
     screen = pygame.display.set_mode((320, 240))
@@ -53,8 +82,7 @@ def pygame_init():
     screen.fill((0, 0, 0))
 
 
-# 解析点云数据
-def parse_lidarData(data):
+def parse_lidarData(data): # 解析点云数据
     # reshape array of floats to array of [X,Y,Z]
     points = np.array(data.point_cloud, dtype=np.dtype('f4')).reshape(-1, 3)
     seg = data.segmentation
@@ -69,7 +97,27 @@ def parse_lidarData(data):
                 f.write("%f %f %f %d\n" % (points[i, 0], points[i, 1], points[i, 2], seg[i]))
 
 
-def save_detections(detections, SceneImage):
+def save_detections(detections, groundtruth, SceneImage):
+    
+    # 获取无人机初始位置
+
+    for obj in detections:
+        obj.box3D.min.x_val, obj.box3D.min.z_val = swap(obj.box3D.min.x_val, obj.box3D.min.z_val)
+        obj.box3D.max.x_val, obj.box3D.max.z_val = swap(obj.box3D.max.x_val, obj.box3D.max.z_val)
+
+        obj.box2D.min.x_val += groundtruth.x_val
+        obj.box2D.min.y_val += groundtruth.y_val
+        obj.box2D.max.x_val += groundtruth.x_val
+        obj.box2D.max.y_val += groundtruth.y_val
+
+        obj.box3D.min.x_val += groundtruth.x_val
+        obj.box3D.min.y_val += groundtruth.y_val
+        obj.box3D.min.z_val += groundtruth.z_val
+        obj.box3D.max.x_val += groundtruth.x_val
+        obj.box3D.max.y_val += groundtruth.y_val
+        obj.box3D.max.z_val += groundtruth.z_val
+        print(obj.box3D.min.z_val, obj.box3D.max.z_val)
+
     with open(detectionpath + "Detection" + str(picture_nums + picture_num) + ".xml", "w") as f:
         f.write("<annotation>\n")
         f.write("\t<file>" + SceneImage + "</file>\n")
@@ -122,8 +170,37 @@ def save_detections(detections, SceneImage):
         f.write("</annotation>\n")
 
 
-# 拍摄数据集
-def image_capture(AirSim_client, picture_num):
+def save_poses(poses, SceneImage):
+    with open(posepath + "Pose" + str(picture_nums + picture_num) + ".xml", "w") as f:
+        f.write("<annotation>\n")
+        f.write("\t<file>" + SceneImage + "</file>\n")
+        f.write("\t<scene>" + scene_name + "</scene>\n")
+        f.write("\t<prev>" + "pass" + "</prev>\n")
+        f.write("\t<next>" + "pass" + "</next>\n")
+        f.write("\t<timestamp>" + "pass" + "</timestamp>\n")
+        for i, obj in enumerate(poses):
+            f.write("\t<object>\n")
+            f.write("\t\t<name>" + movable_object[i] + "</name>\n")
+
+            f.write("\t\t<orientation>\n")
+            f.write("\t\t\t<w>" + str(obj.orientation.w_val) + "</w>\n")
+            f.write("\t\t\t<x>" + str(obj.orientation.x_val) + "</x>\n")
+            f.write("\t\t\t<y>" + str(obj.orientation.y_val) + "</y>\n")
+            f.write("\t\t\t<z>" + str(obj.orientation.z_val) + "</z>\n")
+            f.write("\t\t</orientation>\n")
+
+            f.write("\t\t<position>\n")
+            f.write("\t\t\t<x>" + str(obj.position.x_val) + "</x>\n")
+            f.write("\t\t\t<y>" + str(obj.position.y_val) + "</y>\n")
+            f.write("\t\t\t<z>" + str(obj.position.z_val) + "</z>\n")
+            f.write("\t\t</position>\n")
+
+            f.write("\t</object>\n")
+
+        f.write("</annotation>\n")
+
+
+def image_capture(AirSim_client, picture_num):  # 拍摄数据集
 
     # Scene
     response = AirSim_client.simGetImage("bottom_center", airsim.ImageType.Segmentation) 
@@ -135,38 +212,33 @@ def image_capture(AirSim_client, picture_num):
 
     # Bbox
     detections = AirSim_client.simGetDetections("bottom_center", airsim.ImageType.Scene, vehicle_name = 'Drone')
-    save_detections(detections, scenepath + "Scene" + str(picture_nums + picture_num) + ".png")
+    groundtruth = AirSim_client.simGetGroundTruthEnvironment(vehicle_name='Drone').position
+    save_detections(detections, groundtruth, scenepath + "Scene" + str(picture_nums + picture_num) + ".png")
+
+    # Pose
+    poses = []
+    for obj in movable_object:
+        pose = AirSim_client.simGetObjectPose(obj)
+        poses.append(pose)
+    save_poses(poses, scenepath + "Scene" + str(picture_nums + picture_num) + ".png")
+    print(poses)
+    
+    # Voxel
+    with open(voxelpath + "Groundtruth" + str(picture_nums + picture_num) + ".txt", "w") as f:
+        f.write(str(groundtruth.x_val) + " " + str(groundtruth.y_val) + " " + str(groundtruth.z_val))
+    AirSim_client.simCreateVoxelGrid(groundtruth, 250, 250, 250, 1, voxelpath + "Voxel" + str(picture_nums + picture_num) + ".binvox")
 
     print("Captured")
-    
 
 
 if __name__ == "__main__":
 
     #! AirSim起飞
-    # vehicle_name修改为要控制的无人机名称(与settings.json对应)
-    vehicle_name = "Drone"
-    AirSim_client = airsim.MultirotorClient()
-    AirSim_client.confirmConnection()
-    AirSim_client.enableApiControl(True, vehicle_name)
     AirSim_client.armDisarm(True, vehicle_name)
     AirSim_client.takeoffAsync(vehicle_name=vehicle_name).join()
 
     #* 移动到60m高度
     # AirSim_client.moveToZAsync(-60, 10, vehicle_name=vehicle_name).join()
-
-    # 设置分割对象ID及对应颜色
-    AirSim_client.simSetSegmentationObjectID(".*", 0, True)
-    AirSim_client.simSetSegmentationObjectID("SM_bus_articulated[\w]*", 50, True)
-    AirSim_client.simSetSegmentationObjectID(".*tree.*", 245, True)
-    AirSim_client.simSetSegmentationObjectID(".*[Bb]ld.*", 149, True)
-    AirSim_client.simSetSegmentationObjectID(".*[Bb]uild.*", 149, True)
-    AirSim_client.simSetSegmentationObjectID(".*road.*", 109, True)
-    AirSim_client.simSetSegmentationObjectID(".*traffic.*light.*", 178, True)
-
-    # 设置物体检测参数
-    AirSim_client.simSetDetectionFilterRadius("bottom_center", airsim.ImageType.Scene, 100 * 100, vehicle_name = 'Drone')
-    AirSim_client.simAddDetectionFilterMeshName("bottom_center", airsim.ImageType.Scene, "SM_bus_articulated*", vehicle_name = 'Drone')
 
     pygame_init()
 
