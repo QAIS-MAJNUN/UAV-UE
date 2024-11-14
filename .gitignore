@@ -8,17 +8,8 @@ Capture-Process/SceneImage
 Capture-Process/SegmentationImage
 Capture-Process/SurfaceNormalsImage
 
+process/dataset
 process/Annotation
-process/DepthPerspectiveImage
-process/DepthPlanarImage
-process/DepthVisImage
-process/InfraredImage
-process/PointCloud
-process/Record
-process/SceneImage
-process/SegmentationImage
-process/SegmentationNormalImage
-process/SurfaceNormalsImage
 
 process_updated/Annotation
 process_updated/DepthPerspectiveImage
